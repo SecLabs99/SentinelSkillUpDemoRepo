@@ -1,0 +1,58 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/433c78cf-8467-4fdd-8adb-d1588b36fdff')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/433c78cf-8467-4fdd-8adb-d1588b36fdff')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Firewall: Anomaly in transferred bytes",
+                "description": "This analytic detects anomalous traffic through the firewall",
+                "severity": "Medium",
+                "enabled": false,
+                "query": "let baseline = NetworkPatterns_CL\r\n| summarize \r\n    BaselineBytesTransferred = avg(NoofByesTransferred + NoofBytesReceived)\r\n    by DestinationPort_, SourceAddress_, DestinationAddress_, DeviceVendor;\r\nNetworkPatterns_CL\r\n| extend TotalBytesTransferred = NoofByesTransferred + NoofBytesReceived\r\n| summarize \r\n    Count = count(), \r\n    NoofBytesTransferred = sum(NoofByesTransferred), \r\n    NoofBytesReceived = sum(NoofBytesReceived),\r\n    TotalBytesTransferred = sum(TotalBytesTransferred)\r\n    by DestinationPort_, SourceAddress_, DestinationAddress_, DeviceVendor\r\n| join kind=inner (\r\n    baseline\r\n) on DestinationPort_, SourceAddress_, DestinationAddress_, DeviceVendor\r\n| extend AnomalyFlag = TotalBytesTransferred > 3 * BaselineBytesTransferred  // Simple threshold-based anomaly detection\r\n| where AnomalyFlag == true  // Filter for anomalies\r\n| project DestinationPort_, SourceAddress_, DestinationAddress_, DeviceVendor, Count, NoofBytesTransferred, NoofBytesReceived, TotalBytesTransferred, BaselineBytesTransferred",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "P1D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": true,
+                "startTimeUtc": null,
+                "tactics": [],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "P1D",
+                        "matchingMethod": "AnyAlert",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": null,
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
